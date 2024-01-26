@@ -27,7 +27,7 @@ fn main() {
             let _result = match command {
                 "add" => add_tasks(&argument),
                 "list" => list_tasks(),
-                "rm" => help(),
+                "rm" => rm_tasks(1),
                 _ => help(),
             };
         }
@@ -43,10 +43,7 @@ fn add_tasks(task: &str) {
         .open("tasks")
         .expect("Couldn't open a file");
 
-    let mut newline = "- ".to_owned();
-    newline.push_str(task);
-
-    writeln!(file, "{newline}").expect("Couldn't write to a file");
+    writeln!(file, "{task}").expect("Couldn't write to a file");
 
     println!("Successfully added a task!");
 }
@@ -60,8 +57,28 @@ fn list_tasks() {
         .map(|l| l.expect("Couldn't parse a line in file"))
         .collect();
 
+    let mut count = 1;
     for line in lines {
-        println!("{}", line);
+        println!("{count}. {line}");
+        count += 1;
+    }
+}
+
+fn rm_tasks(index: usize) {
+    let file = File::open("tasks").expect("Couldn't open a file");
+    let buf = BufReader::new(file);
+
+    let mut lines: Vec<String> = buf
+        .lines()
+        .map(|l| l.expect("Couldn't parse a line in file"))
+        .collect();
+
+    lines.remove(index);
+
+    let mut count = 1;
+    for line in lines {
+        println!("{count}. {line}");
+        count += 1;
     }
 }
 
