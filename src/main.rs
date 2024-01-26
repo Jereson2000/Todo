@@ -1,6 +1,7 @@
 use std::env;
 use std::fs::File;
-use std::io::{Error, Write};
+use std::fs::OpenOptions;
+use std::io::{BufRead, BufReader, Write};
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -12,18 +13,23 @@ fn main() {
             help();
         }
         2 => {
-            help();
+            let command = args[1].as_str();
+            let _result = match command {
+                "add" => help(),
+                "list" => list_tasks(),
+                "rm" => help(),
+                _ => help(),
+            };
         }
         3 => {
             let command = args[1].as_str();
             let argument = args[2].as_str();
-            let result = match command {
-                "add" => add_task(&argument),
-                "list" => Ok(help()),
-                "rm" => Ok(help()),
-                _ => Ok(help()),
+            let _result = match command {
+                "add" => add_tasks(&argument),
+                "list" => list_tasks(),
+                "rm" => help(),
+                _ => help(),
             };
-            println!("{:?}", result);
         }
         _ => {
             help();
@@ -31,15 +37,35 @@ fn main() {
     }
 }
 
-fn add_task(task: &str) -> Result<String, Error> {
-    let mut output = File::create("tasks.txt")?;
+fn add_tasks(task: &str) {
+    let mut file = OpenOptions::new()
+        .append(true)
+        .open("tasks")
+        .expect("Couldn't open a file");
 
-    write!(output, "{task}\n")?;
+    let mut newline = "- ".to_owned();
+    newline.push_str(task);
 
-    Ok(String::from("Successfully added a task!"))
+    writeln!(file, "{newline}").expect("Couldn't write to a file");
+
+    println!("Successfully added a task!");
 }
 
-// TODO: implement help function so that it know how to answer to different inputs. 
-fn help() -> String {
-    return String::from("Help in progress!");
+fn list_tasks() {
+    let file = File::open("tasks").expect("Couldn't open a file");
+    let buf = BufReader::new(file);
+
+    let lines: Vec<String> = buf
+        .lines()
+        .map(|l| l.expect("Couldn't parse a line in file"))
+        .collect();
+
+    for line in lines {
+        println!("{}", line);
+    }
+}
+
+// TODO: implement help function so that it know how to answer to different inputs.
+fn help() {
+    println!("Help in progress!");
 }
