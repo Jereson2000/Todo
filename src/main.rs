@@ -6,8 +6,6 @@ use std::io::{BufRead, BufReader, Write};
 fn main() {
     let args: Vec<String> = env::args().collect();
 
-    // https://doc.rust-lang.org/rust-by-example/std_misc/arg/matching.html
-
     match args.len() {
         1 => {
             help();
@@ -27,7 +25,7 @@ fn main() {
             let _result = match command {
                 "add" => add_tasks(&argument),
                 "list" => list_tasks(),
-                "rm" => rm_tasks(1),
+                "rm" => rm_tasks(&argument),
                 _ => help(),
             };
         }
@@ -64,21 +62,23 @@ fn list_tasks() {
     }
 }
 
-fn rm_tasks(index: usize) {
-    let file = File::open("tasks").expect("Couldn't open a file");
-    let buf = BufReader::new(file);
+fn rm_tasks(index: &str) {
+    let mut index: usize = index.parse().unwrap();
+    index -= 1;
+
+    let read = File::open("tasks").expect("Couldn't open a file");
+    let buf = BufReader::new(&read);
 
     let mut lines: Vec<String> = buf
         .lines()
         .map(|l| l.expect("Couldn't parse a line in file"))
         .collect();
-
     lines.remove(index);
 
-    let mut count = 1;
-    for line in lines {
-        println!("{count}. {line}");
-        count += 1;
+    let mut write = File::create("tasks").expect("Couldn't write the newlist in rm");
+
+    for task in lines {
+        writeln!(write, "{task}").expect("Couldn't write to a file");
     }
 }
 
