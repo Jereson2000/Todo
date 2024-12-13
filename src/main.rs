@@ -4,12 +4,18 @@ use std::fs::OpenOptions;
 use std::io::{BufRead, BufReader, Write};
 
 fn main() {
+    // Create re-sizable array for arguments and parse them.
+    // TODO: Implement this with arrays?
     let args: Vec<String> = env::args().collect();
+    println!("{:?}",args);
 
+    // Match by argument length which determines functionality
     match args.len() {
+        // Binary was only provided so print help.
         1 => {
             help();
         }
+        // Binary with an option/typo was provided so respond accordingly.
         2 => {
             let command = args[1].as_str();
             let _result = match command {
@@ -19,6 +25,7 @@ fn main() {
                 _ => help(),
             };
         }
+        // Binary with an option and extra argument was provided so handle accordingly.
         3 => {
             let command = args[1].as_str();
             let argument = args[2].as_str();
@@ -29,6 +36,7 @@ fn main() {
                 _ => help(),
             };
         }
+		// Empty return help message
         _ => {
             help();
         }
