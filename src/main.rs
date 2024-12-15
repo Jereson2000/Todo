@@ -1,45 +1,43 @@
 use std::env;
 use std::fs::File;
-use std::fs::OpenOptions;
 use std::io::{BufRead, BufReader, Write};
+
+use sqlite::Connection;
 
 fn main() {
     // Create re-sizable array for arguments and parse them.
     let args: Vec<String> = env::args().collect();
     println!("{:?}", args); // This line is for debug purposes
 
-    let connection = sqlite::open(":memory:").unwrap();
-    let query = "CREATE TABLE IF NOT EXISTS tasks (taskid INTEGER, task TEXT);";
-    connection.execute(query).unwrap();
+    let conn = initialize_database();
 
-    handle_calls(&args);
+    handle_calls(&args, conn);
 }
 
-fn add_tasks(task: &str) {
-    let mut file = OpenOptions::new()
-        .append(true)
-        .open("tasks")
-        .expect("Couldn't open a file");
-
-    writeln!(file, "{task}").expect("Couldn't write to a file");
-
-    println!("Successfully added a task!");
+fn initialize_database() -> Connection {
+    let connection = sqlite::open("tasks.db").unwrap();
+    connection
+        .execute("CREATE TABLE IF NOT EXISTS tasks (id INTEGER, task TEXT);")
+        .unwrap();
+    return connection;
 }
 
-fn list_tasks() {
-    let file = File::open("tasks").expect("Couldn't open a file");
-    let buf = BufReader::new(file);
+fn add_tasks(task: &str, conn: Connection) {
+    let query = format!("INSERT INTO tasks VALUES ('{}')", task);
+    conn.execute(query).unwrap();
 
-    let lines: Vec<String> = buf
-        .lines()
-        .map(|l| l.expect("Couldn't parse a line in file"))
-        .collect();
+    println!("Task created");
+}
 
-    let mut count = 1;
-    for line in lines {
-        println!("{count}. {line}");
-        count += 1;
-    }
+fn list_tasks(conn: Connection) {
+    let query = "SELECT * FROM tasks";
+    conn.iterate(query, |pairs| {
+        for &(name, value) in pairs.iter() {
+            println!("{} - {}", name, value.unwrap());
+        }
+        true
+    })
+    .unwrap();
 }
 
 fn rm_tasks(index: &str) {
@@ -60,6 +58,8 @@ fn rm_tasks(index: &str) {
     for task in lines {
         writeln!(write, "{task}").expect("Couldn't write to a file");
     }
+
+    println!("Task removed")
 }
 
 // TODO: implement help function so that it know how to answer to different inputs.
@@ -67,7 +67,7 @@ fn help() {
     println!("Help in progress!");
 }
 
-fn handle_calls(args: &Vec<String>) {
+fn handle_calls(args: &Vec<String>, connection: Connection) {
     // Match by argument length which determines functionality
     match args.len() {
         // Binary was only provided so print help.
@@ -79,7 +79,7 @@ fn handle_calls(args: &Vec<String>) {
             let command = args[1].as_str();
             let _result = match command {
                 "add" => help(),
-                "list" => list_tasks(),
+                "list" => list_tasks(connection),
                 "rm" => help(),
                 _ => help(),
             };
@@ -89,8 +89,8 @@ fn handle_calls(args: &Vec<String>) {
             let command = args[1].as_str();
             let argument = args[2].as_str();
             let _result = match command {
-                "add" => add_tasks(&argument),
-                "list" => list_tasks(),
+                "add" => add_tasks(&argument, connection),
+                "list" => list_tasks(connection),
                 "rm" => rm_tasks(&argument),
                 _ => help(),
             };
