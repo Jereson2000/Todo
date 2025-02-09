@@ -1,103 +1,74 @@
-use std::env;
-use std::fs::File;
-use std::fs::OpenOptions;
-use std::io::{BufRead, BufReader, Write};
+use std::u8;
+
+use clap::{Parser, Subcommand};
+use sqlite::Connection;
+
+#[derive(Parser)]
+#[command(name = "Todo")]
+#[command(version = "0.1")]
+#[command(about = "Todo list cli tool for listing tasks!", long_about = None)]
+struct Cli {
+    #[command(subcommand)]
+    command: Commands,
+}
+
+#[derive(Subcommand)]
+enum Commands {
+    // Lists tasks
+    Add { task: String },
+    List,
+    Done { id: u8 },
+}
 
 fn main() {
+    // TODO: figure if there is a way to store the arguments as global constant as they won't be change after initialization.
+    // TODO: Determine the size for the array and initialize with it.
     // Create re-sizable array for arguments and parse them.
-    let args: Vec<String> = env::args().collect();
-    println!("{:?}", args); // This line is for debug purposes
+    let cli = Cli::parse();
 
-    let connection = sqlite::open(":memory:").unwrap();
-    let query = "CREATE TABLE IF NOT EXISTS tasks (taskid INTEGER, task TEXT);";
-    connection.execute(query).unwrap();
+    // TODO: move the database to a file.
+    // TODO: think how the connection should be handled
+    let conn: Connection = sqlite::open("./test.db").unwrap();
+    let statement =
+        String::from("CREATE TABLE IF NOT EXISTS tasks(id INTEGER PRIMARY KEY, task TEXT);");
+    conn.execute(statement).unwrap();
 
-    handle_calls(&args);
+    handle_calls(cli, conn);
 }
 
-fn add_tasks(task: &str) {
-    let mut file = OpenOptions::new()
-        .append(true)
-        .open("tasks")
-        .expect("Couldn't open a file");
-
-    writeln!(file, "{task}").expect("Couldn't write to a file");
-
-    println!("Successfully added a task!");
+fn add_tasks(task: String, conn: Connection) {
+    let statement: String = format!("INSERT INTO tasks(id, task) VALUES(1, '{task}');");
+    conn.execute(statement).unwrap();
+    println!("Added task: {task}");
 }
 
-fn list_tasks() {
-    let file = File::open("tasks").expect("Couldn't open a file");
-    let buf = BufReader::new(file);
-
-    let lines: Vec<String> = buf
-        .lines()
-        .map(|l| l.expect("Couldn't parse a line in file"))
-        .collect();
-
-    let mut count = 1;
-    for line in lines {
-        println!("{count}. {line}");
-        count += 1;
-    }
+// TODO: implement this better
+fn list_tasks(conn: Connection) {
+    let statement = String::from("SELECT * FROM tasks;");
+    conn.iterate(statement, |row| {
+        let collection: Vec<_> = row.iter().collect();
+        println!(
+            "{:?} - {:?}",
+            collection[0].1.unwrap(),
+            collection[1].1.unwrap()
+        );
+        true
+    })
+    .unwrap();
 }
 
-fn rm_tasks(index: &str) {
-    let mut index: usize = index.parse().unwrap();
-    index -= 1;
-
-    let read = File::open("tasks").expect("Couldn't open a file");
-    let buf = BufReader::new(&read);
-
-    let mut lines: Vec<String> = buf
-        .lines()
-        .map(|l| l.expect("Couldn't parse a line in file"))
-        .collect();
-    lines.remove(index);
-
-    let mut write = File::create("tasks").expect("Couldn't write the newlist in rm");
-
-    for task in lines {
-        writeln!(write, "{task}").expect("Couldn't write to a file");
-    }
+fn delete_tasks(id: u8, conn: Connection) {
+    let statement = format!("delete from tasks where id={id};");
+    conn.execute(statement).unwrap();
+    println!("Deleted task with id: {id}")
 }
 
-// TODO: implement help function so that it know how to answer to different inputs.
-fn help() {
-    println!("Help in progress!");
-}
+fn handle_calls(cli: Cli, conn: Connection) {
+    match cli.command {
+        Commands::Add { task } => add_tasks(task, conn),
 
-fn handle_calls(args: &Vec<String>) {
-    // Match by argument length which determines functionality
-    match args.len() {
-        // Binary was only provided so print help.
-        1 => {
-            help();
-        }
-        // Binary with an option/typo was provided so respond accordingly.
-        2 => {
-            let command = args[1].as_str();
-            let _result = match command {
-                "add" => help(),
-                "list" => list_tasks(),
-                "rm" => help(),
-                _ => help(),
-            };
-        }
-        // Binary with an option and extra argument was provided so handle accordingly.
-        3 => {
-            let command = args[1].as_str();
-            let argument = args[2].as_str();
-            let _result = match command {
-                "add" => add_tasks(&argument),
-                "list" => list_tasks(),
-                "rm" => rm_tasks(&argument),
-                _ => help(),
-            };
-        }
-        // Empty return help message
-        _ => {
-            help();
-        }
+        Commands::Done { id } => delete_tasks(id, conn),
+
+        Commands::List => list_tasks(conn),
     }
 }
