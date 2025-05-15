@@ -20,8 +20,8 @@ enum Commands {
 }
 
 fn main() {
+    // TODO: change the depracated function.
     let home_dir: String = String::from(env::home_dir().unwrap().to_str().unwrap());
-    println!("{}", home_dir);
     let app_path = format!("{home_dir}/.local/share/todo");
     create_directory(&app_path);
 
@@ -80,9 +80,10 @@ fn create_directory(path: &String) {
     match fs::exists(path) {
         Ok(exists) => {
             if !exists {
+                println!("Creating directory {}", path);
                 fs::create_dir(path).unwrap()
             }
         }
-        Err(_) => println!("Insufficient permissions perhaps!"),
+        Err(_) => println!("Can't open {}!", path),
     }
 }
