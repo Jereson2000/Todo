@@ -1,7 +1,6 @@
 use clap::{Parser, Subcommand};
 use sqlite::Connection;
 use std::env;
-use std::fmt::format;
 use std::fs;
 
 #[derive(Parser)]
