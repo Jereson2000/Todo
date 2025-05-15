@@ -1,5 +1,8 @@
 use clap::{Parser, Subcommand};
 use sqlite::Connection;
+use std::env;
+use std::fmt::format;
+use std::fs;
 
 #[derive(Parser)]
 #[command(name = "Todo")]
@@ -18,9 +21,14 @@ enum Commands {
 }
 
 fn main() {
-    let cli = Cli::parse();
+    let home_dir: String = String::from(env::home_dir().unwrap().to_str().unwrap());
+    println!("{}", home_dir);
+    let app_path = format!("{home_dir}/.local/share/todo");
+    create_directory(&app_path);
 
-    let conn: Connection = sqlite::open("/var/db/todo/tasks.db").unwrap();
+    let cli = Cli::parse();
+    let data_path = format!("{app_path}/tasks.db");
+    let conn: Connection = sqlite::open(data_path).unwrap();
     let statement = String::from(
         "CREATE TABLE IF NOT EXISTS tasks(
             id INTEGER PRIMARY KEY,
@@ -66,5 +74,16 @@ fn handle_calls(cli: Cli, conn: Connection) {
         Commands::Delete { id } => delete_tasks(id, conn),
 
         Commands::List => list_tasks(conn),
+    }
+}
+
+fn create_directory(path: &String) {
+    match fs::exists(path) {
+        Ok(exists) => {
+            if !exists {
+                fs::create_dir(path).unwrap()
+            }
+        }
+        Err(_) => println!("Insufficient permissions perhaps!"),
     }
 }
